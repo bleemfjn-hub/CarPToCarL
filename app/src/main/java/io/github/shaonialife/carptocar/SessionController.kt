@@ -3603,7 +3603,10 @@ object SessionController {
                                             // 这里每次发 config 都会取到最新值，声明永远与码流一致。
                                             liveSize =
                                                 if (hijackMode) {
-                                                    { CarLifeHijack.videoSize }
+                                                    // vivo/JYBOX 实测（2026-11-03）：协商档位 748x480 而引擎
+                                                    // 实际按 768x432 编码（SPS 证据），声明与 SPS 不一致 → 车机花屏。
+                                                    // 解码器按 SPS 建，声明必须跟 SPS 走；未解析到 SPS 时才回落协商值。
+                                                    { CarLifeHijack.actualStreamSize ?: CarLifeHijack.videoSize }
                                                 } else {
                                                     null
                                                 },

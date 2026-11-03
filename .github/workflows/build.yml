@@ -31,6 +31,12 @@ jobs:
           fi
           ls "$ANDROID_HOME/platforms" 2>/dev/null || true
 
+      - name: Cache debug keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+
       - name: Build debug APK
         run: |
           chmod +x gradlew
