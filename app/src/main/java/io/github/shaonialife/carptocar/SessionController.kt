@@ -3786,7 +3786,11 @@ object SessionController {
         // 里记 lastCarWifi —— 这类车型上 onCarWifiLost 永远走「没凭据，只能提示」，
         // 1.2.10 加的自动重绑对它们等于不存在（只有 0x5703 车型才生效）。
         lastCarWifi = wifiConfig
-        if (boundCarSsid == endpoint.ssid && wifiConnector?.currentNetwork != null) {
+        // 2026-11-03 实车（JYBOX-80）：Wi-Fi 掉线重连后 wifiConnector.currentNetwork
+        // 仍是旧的 Network 对象，跳过重绑会让后续 connect() 全部 ENONET
+        // （日志：NSD 已解析到 192.168.50.2:5000，但 socket failed: ENONET）。
+        // 因此不再信任缓存绑定，每轮都按当前真实网络重新入网/重绑。
+        if (false && boundCarSsid == endpoint.ssid && wifiConnector?.currentNetwork != null) {
             appendLog(">>> [$source] 已绑定车机热点 ${endpoint.ssid}，跳过重复绑定")
             continueWithNetwork(true)
         } else {
