@@ -304,7 +304,13 @@ object CarLifeHijack {
      * 触摸映射请用 [touchVideoSize]。
      */
     val videoSize: Pair<Int, Int>
-        get() = client?.negotiatedSize ?: (1280 to 720)
+        get() = client?.let {
+            // 2026-11-03 实车（JYBOX-80）：vivo 引擎不认车机分辨率，98311 报 748×480
+            // 仍按 1280×720 编码。若声明跟车机走（748×480）而码流是 720p，车机解码器
+            // 尺寸不符 → 绿线/花屏。故一旦 SPS 确认，声明一律以真实码流尺寸为准，
+            // 由接收端自行缩放到自己的画布。
+            if (it.videoSizeConfirmed) it.videoSize else it.negotiatedSize
+        } ?: (1280 to 720)
 
     /**
      * 码流真实分辨率（SPS），**仅用于诊断与画面比例判断，不参与触摸映射**。
