@@ -70,7 +70,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * 销毁/重建对其无影响。会话逻辑线程通过 [appContext] 运行，不依赖任何 Activity。
  */
 /** 兼容开关：false = 不加入音频流（规避部分盒子音频 RECORD 500 拆会话）。 */
-private const val ENABLE_AUDIO_CHANNEL = false
+private const val ENABLE_AUDIO_CHANNEL = true
 
 object SessionController {
     // ---- 日志缓冲（进程级；Activity 订阅渲染）----
@@ -3652,6 +3652,21 @@ object SessionController {
                                 // 返回同一毫秒、且 5 次实测全部复现。故顺序改为：
                                 //   屏幕 SETUP → 连数据端口 → RECORD → 起编码器（出帧）→ 音频 SETUP
                                 // 音频 SETUP 失败只丢声音，视频会话保持。
+                                //
+                                // 但有些接收端（JYBOX-80 / Magic-Car-Link 1.00）**不支持流后补 RECORD**：
+                                // 音频 SETUP 成功后补发的 RECORD 会被回 500，整条会话随即被拆
+                                // （2026-11-03 实车日志 21:32:34）。对这类接收端改成：
+                                //   屏幕 SETUP → 连数据端口 → 音频 SETUP → RECORD（一次激活视频+音频）
+                                val audioBeforeRecord =
+                                    ENABLE_AUDIO_CHANNEL &&
+                                        client.receiverIdentity().contains("Magic-Car-Link", ignoreCase = true)
+                                val audioStartedEarly =
+                                    if (audioBeforeRecord) {
+                                        appendLog("AUDIO: 该接收端不支持流后补 RECORD——音频提前到 RECORD 之前协商")
+                                        startAudioChannel(context, client, sessionKey, host)
+                                    } else {
+                                        false
+                                    }
                                 client.record()
                                 // RECORD 成功 = 会话活着。此刻丢弃报文缓冲：用户要的是
                                 // 「连不上」的现场，正常连接不需要快照（省空间也省导出体积）。
@@ -3707,10 +3722,14 @@ object SessionController {
                                 // 2026-11-03 实车（JYBOX-80 / Magic-Car-Link 1.00）：音频流加入后
                                 // 补发 RECORD 被回 500，整条会话随即被拆 → 表现为「出过画面然后黑屏」。
                                 // 视频链路本身正常，故先关音频只推视频。
-                                val audioStarted = if (ENABLE_AUDIO_CHANNEL) {
+                                val audioStarted = if (ENABLE_AUDIO_CHANNEL && !audioStartedEarly) {
                                     startAudioChannel(context, client, sessionKey, host)
                                 } else {
-                                    appendLog("AUDIO: 兼容开关已关闭音频通道（只推视频）")
+                                    if (audioStartedEarly) {
+                                        appendLog("AUDIO: 音频已随本次 RECORD 一同激活（未补发 RECORD）")
+                                    } else {
+                                        appendLog("AUDIO: 音频通道未启用")
+                                    }
                                     false
                                 }
                                 if (audioStarted) {
