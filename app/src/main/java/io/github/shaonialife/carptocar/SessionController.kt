@@ -69,6 +69,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * 本对象把这些状态提升为进程级单例：Activity 只是"挂屏"（订阅日志、转发按钮），
  * 销毁/重建对其无影响。会话逻辑线程通过 [appContext] 运行，不依赖任何 Activity。
  */
+/** 兼容开关：false = 不加入音频流（规避部分盒子音频 RECORD 500 拆会话）。 */
+private const val ENABLE_AUDIO_CHANNEL = false
+
 object SessionController {
     // ---- 日志缓冲（进程级；Activity 订阅渲染）----
 
@@ -3691,7 +3694,15 @@ object SessionController {
                                 }
                                 // 音频通道（可选）：SETUP type=100 → UDP RTP 推流。
                                 // 会话已激活（RECORD 完成）后再协商；失败不影响视频主链路。
-                                val audioStarted = startAudioChannel(context, client, sessionKey, host)
+                                // 2026-11-03 实车（JYBOX-80 / Magic-Car-Link 1.00）：音频流加入后
+                                // 补发 RECORD 被回 500，整条会话随即被拆 → 表现为「出过画面然后黑屏」。
+                                // 视频链路本身正常，故先关音频只推视频。
+                                val audioStarted = if (ENABLE_AUDIO_CHANNEL) {
+                                    startAudioChannel(context, client, sessionKey, host)
+                                } else {
+                                    appendLog("AUDIO: 兼容开关已关闭音频通道（只推视频）")
+                                    false
+                                }
                                 if (audioStarted) {
                                     // 流在 RECORD 之后加入：AirPlay 语义要求再发一次 RECORD
                                     // 把新流纳入已激活的会话。缺这一步时车机对 SETUP 回 200
