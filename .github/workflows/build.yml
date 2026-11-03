@@ -20,10 +20,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
-      - name: Accept licenses
-        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+      - name: Ensure Android SDK components
+        run: |
+          if [ -z "$ANDROID_HOME" ]; then echo "ANDROID_HOME 未设置"; exit 1; fi
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKM" ]; then
+            yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+            "$SDKM" "platforms;android-34" "build-tools;34.0.0" "platform-tools" > /dev/null 2>&1 || true
+          fi
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
 
       - name: Build debug APK
         run: |
@@ -47,7 +53,7 @@ jobs:
         with:
           tag_name: ci
           name: CI build
-          body: 自动构建，覆盖更新。提交 ${{ github.sha }}
+          body: 自动构建，覆盖更新。
           files: out/CarPToCarL-ci.apk
           prerelease: false
         env:
