@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 无线 CarPlay 全链路：蓝牙 RFCOMM（iAP2 控制通道）+ WiFi（热点加入 / mDNS） -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
+    <!-- WifiNetworkSpecifier（应用专属网络）在 Android 12/12L（API 31-32）仍要求位置权限；
+         13+ 由 NEARBY_WIFI_DEVICES 取代，运行时不再申请这两个权限。
+         声明层面必须 FINE+COARSE 成对（lint CoarseFineLocation 强制要求）。 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- 目标车机选择里的「扫描未配对设备」：Android 12+ 需单独授权；
+         neverForLocation 表示扫描结果不用于定位（免去定位权限） -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- 音频通道：AudioPlaybackCapture（捕获本机媒体/导航声音上车）必需 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 音频通道激活时静音手机媒体音量（声音只从车机出），断开恢复 -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- 暗幕（替代息屏）需要；系统「显示在其他应用上层」列表只收录声明本权限的应用 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!--
+     CarLife 画质增强：手机端 CarLife 引擎从 **/sdcard 根下** 的 BaiduCarlife 目录读
+     调试配置，这不是 App 私有目录，分区存储下只有 MANAGE_EXTERNAL_STORAGE 能写。
+
+     **必须在清单声明**：缺了这条，系统设置里根本不会出现「所有文件访问」开关，
+     `appops set` 也会失效（`isExternalStorageManager()` 恒 false），功能必然静默失效。
+     本 App 为自用车机工具，不分发到 Play，不受其「所有文件访问」政策限制。
+    -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- 靠近车机自动启动：靠系统投递蓝牙 ACL 广播唤醒进程。电池优化一开，
+         后台进程被冻结/广播被丢弃，功能会表现为「有时连、有时没反应」，
+         故需要引导用户把本应用加入「不限制」名单（App 内只在开启开关时提示一次）。
+         本 App 自用、不分发到 Play，不受其对该权限的政策限制。 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
+
+    <queries>
+        <package android:name="com.autonavi.amapauto" />
+        <package android:name="com.autonavi.minimap" />
+        <!-- 应用桌面需要枚举全部可启动应用（Android 11+ 包可见性） -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".SenderApp"
+        android:allowBackup="false"
+        android:allowAudioPlaybackCapture="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.CarPlaySender">
+
+        <!-- 手机侧操作台自行处理旋转：它是有状态的工具界面（滚动位置、折叠卡、
+             已填热点 SSID、正在显示的弹窗），系统重建会把它们全部丢掉。
+             声明 configChanges 后 Activity 不重建、视图状态原样保留；
+             依赖屏幕尺寸的弹窗窗口在 onConfigurationChanged 里重算。 -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 车机设置模块已移除（2026-10-24）：手机侧二级菜单与车机双栏设置页均已删除，
+             「显示」面板内容（分辨率缩放/帧率/触摸节流/CarLife 劫持开关）已迁移到首页。 -->
+
+        <service
+            android:name=".service.CarPlayService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice|mediaProjection" />
+
+        <!-- 通知栏「断开」：后台自动连接时界面上没有窗口，断开的入口必须独立于
+             界面存活，所以走广播。exported=false 即可——PendingIntent 由本应用创建，
+             投递时沿用本应用身份。 -->
+        <receiver
+            android:name=".service.NotificationActionReceiver"
+            android:exported="false" />
+
+        <!-- 虚拟屏桌面（exported：shell am start 需要可从外部拉起） -->
+        <activity
+            android:name=".launcher.DockActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.CarPlaySender.Launcher" />
+
+        <activity
+            android:name=".launcher.GridActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.CarPlaySender.Launcher" />
+
+        <!-- 靠近车机自动启动（2026-10-30）：只听系统蓝牙 ACL 事件——车机进入范围后
+             自己回连手机时系统会投递 ACTION_ACL_CONNECTED，据此识别「车来了」。
+             这是静默检测的全部实现：不扫描、不轮询、无常驻服务、无常驻通知。
+             静态注册的用意是 App 没打开、进程没起来也能收到（系统投递时拉起进程）。
+
+             exported 必须为 true：ACL_* 由系统蓝牙栈（独立进程）投递，exported="false"
+             只放行「同 uid」的广播，车机连上来时这条广播会被直接丢掉、表现为完全不触发。
+             该 action 在系统侧属 protected-broadcast，第三方应用无法伪造，故不担心被滥用。 -->
+        <receiver
+            android:name=".bt.CarApproachReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 车机远离后的收摊闹钟（2026-10-30）：蓝牙断开 30 秒未回连 → 结束会话、
+             停保活服务、退出进程。
+
+             必须 exported="false"：上面那个接收器为了收系统 ACL 广播不得不导出，
+             而「退出进程」这种动作若也放在那里，任何第三方应用发一条广播就能把本应用
+             掐掉。这里只由本应用自己的 PendingIntent 显式投递，不设 intent-filter。 -->
+        <receiver
+            android:name=".service.CarIdleReceiver"
+            android:exported="false" />
+
+        <!-- 通知监听（媒体会话枚举）：音乐卡需要「通知使用权」，
+             需用户在系统设置里手动授权（不再有 shell 静默授权通道） -->
+        <service
+            android:name=".media.MediaListenerService"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

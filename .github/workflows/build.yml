@@ -1,0 +1,60 @@
+name: build-apk
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', 'apk/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Ensure Android SDK components
+        run: |
+          if [ -z "$ANDROID_HOME" ]; then echo "ANDROID_HOME 未设置"; exit 1; fi
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKM" ]; then
+            yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+            "$SDKM" "platforms;android-34" "build-tools;34.0.0" "platform-tools" > /dev/null 2>&1 || true
+          fi
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+
+      - name: Build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/debug/*.apk out/CarPToCarL-ci.apk
+          ls -l out/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CarPToCarL-ci
+          path: out/CarPToCarL-ci.apk
+
+      - name: Publish to release (fixed URL)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ci
+          name: CI build
+          body: 自动构建，覆盖更新。
+          files: out/CarPToCarL-ci.apk
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
