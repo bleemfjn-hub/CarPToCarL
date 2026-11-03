@@ -1446,10 +1446,20 @@ object SessionController {
         wifi: Iap2SenderSession.WifiConfiguration,
         force: Boolean,
     ): WifiCarPlayConnector.JoinResult {
+        // 2026-11-03 实车（JYBOX-80）：Wi-Fi 反复 onLost/onAvailable 后，connector.currentNetwork
+        // 仍指向已失效的 Network 对象，此处的「已在位」短路会让后续 bind/connect 全部 ENONET
+        // （日志：ctrl 绑定失败 + AirPlay 连接 192.168.50.2:5000 失败，均为 ENONET）。
+        // 改为校验该网络仍是系统当前活跃网络；不是则走完整重入流程。
         val wired = connector.currentNetwork
-        if (boundCarSsid == wifi.ssid && wired != null) {
+        val active = runCatching {
+            (appContext?.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
+                as? android.net.ConnectivityManager)?.activeNetwork
+        }.getOrNull()
+        if (boundCarSsid == wifi.ssid && wired != null && active == wired) {
             appendLog("WIFI: 应用专属网络已在位——跳过重复加入")
             return WifiCarPlayConnector.JoinResult.Joined(wired)
+        } else if (wired != null && active != wired) {
+            appendLog("WIFI: 缓存的网络已失效（active≠cached）——强制重新加入 \"${wifi.ssid}\"")
         }
         return when (val decision = wifiJoinGate.decide(wifi.ssid, android.os.SystemClock.uptimeMillis(), force)) {
             is WifiJoinGate.Decision.Skip -> {
