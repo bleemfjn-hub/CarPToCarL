@@ -279,7 +279,7 @@ class AudioSender(
         if (running.get()) return true
         stopped.set(false)
         return try {
-            val client = DatagramSocket()
+            val client = io.github.shaonialife.carptocar.net.CarNetwork.udp()
             client.connect(InetAddress.getByName(host), dataPort)
             socket = client
 
@@ -374,7 +374,7 @@ class AudioSender(
         if (running.get()) return true
         stopped.set(false)
         return try {
-            val client = DatagramSocket()
+            val client = io.github.shaonialife.carptocar.net.CarNetwork.udp()
             client.connect(InetAddress.getByName(host), dataPort)
             socket = client
 
@@ -589,7 +589,7 @@ class AudioSender(
      */
     private fun openSyncSocket(): DatagramSocket? =
         try {
-            DatagramSocket().apply { connect(InetAddress.getByName(host), controlPort) }
+            io.github.shaonialife.carptocar.net.CarNetwork.udp().apply { connect(InetAddress.getByName(host), controlPort) }
         } catch (error: Exception) {
             log("AUDIO: 同步包套接字创建失败 - ${error.message}")
             null

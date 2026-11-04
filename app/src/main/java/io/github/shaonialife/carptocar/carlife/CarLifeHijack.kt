@@ -48,7 +48,7 @@ object CarLifeHijack {
      * 98316 那条「30 反而掉到 15.4fps」的老结论只对 20fps 源成立，源变 60 后不再适用，
      * 所以不要去动 98316，保持申请 60 即可。
      */
-    private const val DEFAULT_FPS = 60
+    private const val DEFAULT_FPS = 30
 
     /** 98386 连接类型（5=WiFi；1~4 为 USB 等其它档位，用于试更高编码档）。 */
     private const val KEY_CONNECT_TYPE = "carlife_connect_type"

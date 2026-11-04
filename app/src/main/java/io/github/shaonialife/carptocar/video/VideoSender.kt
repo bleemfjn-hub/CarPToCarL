@@ -223,7 +223,7 @@ class VideoSender(
         val existing = socket
         if (existing != null && !existing.isClosed) return true
         return try {
-            val client = Socket()
+            val client = io.github.shaonialife.carptocar.net.CarNetwork.tcp()
             client.connect(InetSocketAddress(host, dataPort), 5_000)
             client.tcpNoDelay = true
             // 视频口是单向长写：对端静默消失时写窗口会一直「写成功」直到内核缓冲填满，
@@ -267,7 +267,7 @@ class VideoSender(
             while (running.get() && attempt < DATA_RECONNECT_ATTEMPTS) {
                 attempt++
                 try {
-                    val client = Socket()
+                    val client = io.github.shaonialife.carptocar.net.CarNetwork.tcp()
                     client.connect(InetSocketAddress(host, dataPort), 2_000)
                     client.tcpNoDelay = true
                     TcpLiveness.configure(client, "视频数据口(重连)", log)

@@ -167,7 +167,7 @@ class WifiCarPlayConnector(
         val newCallback =
             object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    val bound = connectivityManager.bindProcessToNetwork(network)
+                    val bound = connectivityManager.bindProcessToNetwork(network); io.github.shaonialife.carptocar.net.CarNetwork.use(network)
                     boundNetwork.set(network)
                     result.set(network)
                     log("WiFi: 已加入应用专属网络 \"$ssid\"（$network bindProcessToNetwork=$bound）——不影响其它应用联网")
@@ -182,7 +182,7 @@ class WifiCarPlayConnector(
 
                 override fun onLost(network: Network) {
                     if (boundNetwork.compareAndSet(network, null)) {
-                        connectivityManager.bindProcessToNetwork(null)
+                        connectivityManager.bindProcessToNetwork(null); io.github.shaonialife.carptocar.net.CarNetwork.use(null)
                         log("WiFi: 应用专属网络 \"$ssid\" 已断开（$network）")
                         onNetworkLost?.invoke(ssid)
                     }
@@ -285,7 +285,7 @@ class WifiCarPlayConnector(
             object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     boundNetwork.set(network)
-                    val bound = connectivityManager.bindProcessToNetwork(network)
+                    val bound = connectivityManager.bindProcessToNetwork(network); io.github.shaonialife.carptocar.net.CarNetwork.use(network)
                     log("WiFi: 已绑定当前WiFi网络 $network bindProcessToNetwork=$bound")
                     if (reported.compareAndSet(false, true)) onResult(true)
                 }
@@ -448,7 +448,7 @@ class WifiCarPlayConnector(
         val newCallback =
             object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    val bound = connectivityManager.bindProcessToNetwork(network)
+                    val bound = connectivityManager.bindProcessToNetwork(network); io.github.shaonialife.carptocar.net.CarNetwork.use(network)
                     boundNetwork.set(network)
                     result.set(network)
                     log("WiFi: 建议网络已生效——绑定当前 WiFi（$network bindProcessToNetwork=$bound）")
@@ -457,7 +457,7 @@ class WifiCarPlayConnector(
 
                 override fun onLost(network: Network) {
                     if (boundNetwork.compareAndSet(network, null)) {
-                        connectivityManager.bindProcessToNetwork(null)
+                        connectivityManager.bindProcessToNetwork(null); io.github.shaonialife.carptocar.net.CarNetwork.use(null)
                         onNetworkLost?.invoke("")
                     }
                 }
@@ -498,7 +498,7 @@ class WifiCarPlayConnector(
             runCatching { connectivityManager.unregisterNetworkCallback(it) }
         }
         if (boundNetwork.getAndSet(null) != null) {
-            connectivityManager.bindProcessToNetwork(null)
+            connectivityManager.bindProcessToNetwork(null); io.github.shaonialife.carptocar.net.CarNetwork.use(null)
         }
     }
 }

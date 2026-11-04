@@ -1222,6 +1222,8 @@ object SessionController {
      * 幂等：已有会话时 BT 组件的 start() 自行短路，不会双开。
      */
     fun startConnection(context: Context) {
+        io.github.shaonialife.carptocar.util.RtspDump.init(context.filesDir)
+        io.github.shaonialife.carptocar.audio.AudioOrderMemory.init(context)
         connectCancelled = false
         // 用户明确要连：解冻恢复的前提之一（断开后再解冻不该自己爬起来）
         sessionWanted = true

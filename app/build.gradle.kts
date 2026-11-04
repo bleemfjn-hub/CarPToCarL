@@ -30,7 +30,7 @@ val appVersionName = "1.2.22"
  * 两边不再保证「互相覆盖安装」——把 main 的低版本装到已装本分支的机器上
  * 会被系统以「版本更小」拒绝，且 release 包不接受 `-d` 降级，只能彻底卸载重装。
  */
-val appVersionSuffix = "-switchpool"
+val appVersionSuffix = "-vivo"
 
 val appVersionCode =
     appVersionName
@@ -74,6 +74,13 @@ android {
         }
     }
 
+    signingConfigs.getByName("debug").apply {
+        storeFile = rootProject.file("keystore/debug.jks")
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+    }
+
     buildTypes {
         release {
             // **不做代码混淆**：本项目依赖反射（SystemProperties、Shizuku API）与
@@ -85,7 +92,7 @@ android {
         debug {
             // **不要加 applicationIdSuffix**：本项目 debug 包就是日常使用的包——
             // Shizuku 授权是按包名授予的，改包名会要求重新授权。
-            versionNameSuffix = "-debug"
+            versionNameSuffix = ""
         }
     }
 

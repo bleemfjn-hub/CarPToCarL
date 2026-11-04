@@ -454,7 +454,7 @@ class AirPlayClient(
         Thread({
             var udp: java.net.DatagramSocket? = null
             try {
-                udp = java.net.DatagramSocket()
+                udp = io.github.shaonialife.carptocar.net.CarNetwork.udp()
                 val address = java.net.InetAddress.getByName(host)
                 var sent = 0
                 var lastSentAt = 0L
@@ -655,6 +655,7 @@ class AirPlayClient(
                         "Content-Length: ${body.size}\r\n" +
                         "CSeq: $eventCseq\r\n\r\n"
                 val plaintext = head.toByteArray(Charsets.US_ASCII) + body
+                io.github.shaonialife.carptocar.util.RtspDump.tx("POST /command (event)", head, body)
                 SessionTrace.rtsp(
                     SessionTrace.Dir.TX,
                     "airplay-event",
@@ -1061,7 +1062,7 @@ class AirPlayClient(
         return try {
             log("AIRPLAY: /info 侧信道探测 → $host:${target.airPlayPort}（独立短连接，不碰会话）")
             probe =
-                Socket().apply {
+                io.github.shaonialife.carptocar.net.CarNetwork.tcp().apply {
                     connect(InetSocketAddress(resolveAddress(host), target.airPlayPort), timeoutMillis)
                     soTimeout = timeoutMillis
                 }
@@ -1395,7 +1396,7 @@ class AirPlayClient(
             )
         val tcp =
             try {
-                Socket()
+                io.github.shaonialife.carptocar.net.CarNetwork.tcp()
             } catch (error: IOException) {
                 return null
             }
@@ -2536,7 +2537,7 @@ class AirPlayClient(
         }
         val host = receiverHost() ?: return false
         try {
-            val socket = Socket()
+            val socket = io.github.shaonialife.carptocar.net.CarNetwork.tcp()
             socket.connect(InetSocketAddress(resolveAddress(host), setup.eventPort), 5_000)
             socket.tcpNoDelay = true
             socket.soTimeout = 30_000
@@ -2756,7 +2757,7 @@ class AirPlayClient(
                     continue
                 }
             try {
-                val newSocket = Socket()
+                val newSocket = io.github.shaonialife.carptocar.net.CarNetwork.tcp()
                 newSocket.connect(InetSocketAddress(address, target.airPlayPort), timeoutMillis)
                 if (generation != endpointGeneration) {
                     // 连接途中端点已更新：丢弃这条旧连接，下一轮按新地址重连
@@ -2904,6 +2905,7 @@ class AirPlayClient(
                         "Content-Length: ${body.size}\r\n" +
                         "\r\n"
                 val plaintext = head.toByteArray(Charsets.US_ASCII) + body
+                io.github.shaonialife.carptocar.util.RtspDump.tx("$method $path", head, body)
                 val encryption = cipher
                 SessionTrace.rtsp(
                     SessionTrace.Dir.TX,
@@ -3038,6 +3040,7 @@ class AirPlayClient(
         body: ByteArray,
         head: String,
     ) {
+        io.github.shaonialife.carptocar.util.RtspDump.rx(statusLine, head, body)
         val message = RtspMessage(statusLine, body, head)
         message.cseq?.let { responseHeads[it] = head }
         val queue = message.cseq?.let { pendingResponses[it] }

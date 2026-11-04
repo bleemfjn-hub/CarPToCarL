@@ -270,7 +270,7 @@ internal object CarLifeProtocol {
      *  - 车机端花屏 1 秒内自愈；
      *  - 每秒都有完整帧，平均码率随之上升（I 帧远大于 P 帧），1080p 下的块效应明显减轻。
      */
-    const val I_FRAME_INTERVAL_DEFAULT = 20
+    const val I_FRAME_INTERVAL_DEFAULT = 30
 
     /**
      * 特征配置：CONNECT_TYPE + I 帧间隔 + 分辨率直通 + 歌词支持。
@@ -283,10 +283,14 @@ internal object CarLifeProtocol {
      *  - `MEDIA_LYRIC_SUPPORT = 1` → 引擎 dispatch `carlife_other_media_lyric_support`，
      *    开启歌词支持。
      */
+    /** 运行时开关：车机画布 ≤1280×720 时置 true，让引擎按车机分辨率编码。 */
+    @Volatile
+    var useVehicleResolutionDefault: Boolean = false
+
     fun featureConfig(
         connectType: Int = CONNECT_TYPE_WIFI,
         iFrameInterval: Int = I_FRAME_INTERVAL_DEFAULT,
-        useVehicleResolution: Boolean = true,
+        useVehicleResolution: Boolean = useVehicleResolutionDefault,
         mediaLyricSupport: Boolean = true,
     ): ByteArray {
         val items = ArrayList<ByteArray>()
