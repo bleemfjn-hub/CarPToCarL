@@ -903,12 +903,18 @@ class VideoSender(
         val parsed = parseSpsDimensions(sps)
         val spsSane = parsed != null &&
             parsed.first in 320..4096 && parsed.second in 180..2304
+        // 2026-11-04 实车（JYBOX-80）：车机按 VideoConfig 头部的宽高建解码器/纹理，
+        // 而实际码流的 SPS 可能是另一个尺寸（申请 748×480 → 引擎回 768×432）。
+        // 头部与码流不一致时，车机解出来就是整屏绿条纹。故优先用 SPS 实值，
+        // 只有 SPS 不可用时才退回车机画布/构造值。
         val cfgWidth = when {
+            spsSane -> parsed!!.first
             live != null && live.first > 0 -> live.first
             width > 0 -> width
             else -> parsed?.first ?: width
         }
         val cfgHeight = when {
+            spsSane -> parsed!!.second
             live != null && live.second > 0 -> live.second
             height > 0 -> height
             else -> parsed?.second ?: height
